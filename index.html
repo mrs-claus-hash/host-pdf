@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer with Search Highlight</title>
+    <script>
+        // Function to get search term from URL
+        function getSearchParam() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get("search") || ""; // Get "search" query param
+        }
+
+        // Function to load PDF with highlight
+        function loadPDF() {
+            const pdfViewer = document.getElementById("pdfViewer");
+            const searchText = getSearchParam();
+
+            if (searchText) {
+                console.log("Searching for:", searchText);
+                pdfViewer.src = `GCPBC.pdf#search=${encodeURIComponent(searchText)}`;
+            }
+        }
+
+        // Run on page load
+        window.onload = loadPDF;
+    </script>
+</head>
+<body>
+    <h2>View PDF with Highlighted Text</h2>
+    <iframe id="pdfViewer" src="GCPBC.pdf" width="100%" height="600px"></iframe>
+</body>
+</html>
