@@ -3,33 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Viewer with Highlight</title>
+    <title>PDF Viewer with Highlighting</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
     <style>
         #pdf-container {
             position: relative;
             width: 100%;
-            height: 600px;
+            height: 700px;
+            overflow: auto;
+            border: 1px solid #ccc;
         }
         canvas {
             width: 100%;
         }
         .highlight {
-            position: absolute;
-            background: yellow;
+            background-color: yellow;
             opacity: 0.6;
+            position: absolute;
+            z-index: 2;
+        }
+        .textLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 2;
             pointer-events: none;
+        }
+        .highlighted {
+            background-color: yellow !important;
+            color: black !important;
         }
     </style>
 </head>
 <body>
     <h2>PDF Viewer with Text Highlighting</h2>
+    <input type="text" id="searchQuery" placeholder="Enter text to search">
+    <button onclick="searchText()">Highlight</button>
     <div id="pdf-container"></div>
 
     <script>
         const url = "GCPBC.pdf";  // Path to your PDF
         let searchQuery = new URLSearchParams(window.location.search).get("search");
-
         const pdfContainer = document.getElementById("pdf-container");
 
         async function loadPDF() {
@@ -39,34 +56,59 @@
                 const page = await pdf.getPage(pageNum);
                 const viewport = page.getViewport({ scale: 1.5 });
 
+                // Create a container for each page
+                const pageDiv = document.createElement("div");
+                pageDiv.style.position = "relative";
+                pageDiv.style.marginBottom = "10px";
+
                 // Create canvas for rendering
                 const canvas = document.createElement("canvas");
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
-                pdfContainer.appendChild(canvas);
+                pageDiv.appendChild(canvas);
 
                 const context = canvas.getContext("2d");
                 await page.render({ canvasContext: context, viewport }).promise;
 
-                // Extract text and highlight
+                // Create text layer
+                const textLayerDiv = document.createElement("div");
+                textLayerDiv.classList.add("textLayer");
+                textLayerDiv.style.width = `${viewport.width}px`;
+                textLayerDiv.style.height = `${viewport.height}px`;
+                pageDiv.appendChild(textLayerDiv);
+
+                pdfContainer.appendChild(pageDiv);
+
+                // Extract text content and append to text layer
                 const textContent = await page.getTextContent();
                 textContent.items.forEach((textItem) => {
-                    if (searchQuery && textItem.str.includes(searchQuery)) {
-                        highlightText(canvas, textItem, viewport);
-                    }
+                    const span = document.createElement("span");
+                    span.textContent = textItem.str;
+                    span.style.position = "absolute";
+                    span.style.left = `${textItem.transform[4]}px`;
+                    span.style.top = `${viewport.height - textItem.transform[5]}px`;
+                    span.style.fontSize = "12px";
+                    span.style.whiteSpace = "pre";
+                    textLayerDiv.appendChild(span);
                 });
+            }
+
+            // Auto-highlight if query exists in URL
+            if (searchQuery) {
+                document.getElementById("searchQuery").value = searchQuery;
+                searchText();
             }
         }
 
-        function highlightText(canvas, textItem, viewport) {
-            const ctx = canvas.getContext("2d");
-            const textBox = textItem.transform;
-            const x = textBox[4];
-            const y = viewport.height - textBox[5];
+        function searchText() {
+            const query = document.getElementById("searchQuery").value.toLowerCase();
+            if (!query) return;
 
-            ctx.fillStyle = "yellow";
-            ctx.globalAlpha = 0.5;
-            ctx.fillRect(x, y - 10, textItem.width, 10);
+            document.querySelectorAll(".textLayer span").forEach(span => {
+                if (span.textContent.toLowerCase().includes(query)) {
+                    span.classList.add("highlighted");
+                }
+            });
         }
 
         loadPDF();
