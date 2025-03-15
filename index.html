@@ -3,31 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Viewer with Search Highlight</title>
-    <script>
-        // Function to get search term from URL
-        function getSearchParam() {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get("search") || ""; // Get "search" query param
+    <title>PDF Viewer with Highlight</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <style>
+        #pdf-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
         }
+        canvas {
+            width: 100%;
+        }
+        .highlight {
+            position: absolute;
+            background: yellow;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <h2>PDF Viewer with Text Highlighting</h2>
+    <div id="pdf-container"></div>
 
-        // Function to load PDF with highlight
-        function loadPDF() {
-            const pdfViewer = document.getElementById("pdfViewer");
-            const searchText = getSearchParam();
+    <script>
+        const url = "GCPBC.pdf";  // Path to your PDF
+        let searchQuery = new URLSearchParams(window.location.search).get("search");
 
-            if (searchText) {
-                console.log("Searching for:", searchText);
-                pdfViewer.src = `GCPBC.pdf#search=${encodeURIComponent(searchText)}`;
+        const pdfContainer = document.getElementById("pdf-container");
+
+        async function loadPDF() {
+            const pdf = await pdfjsLib.getDocument(url).promise;
+
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: 1.5 });
+
+                // Create canvas for rendering
+                const canvas = document.createElement("canvas");
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                pdfContainer.appendChild(canvas);
+
+                const context = canvas.getContext("2d");
+                await page.render({ canvasContext: context, viewport }).promise;
+
+                // Extract text and highlight
+                const textContent = await page.getTextContent();
+                textContent.items.forEach((textItem) => {
+                    if (searchQuery && textItem.str.includes(searchQuery)) {
+                        highlightText(canvas, textItem, viewport);
+                    }
+                });
             }
         }
 
-        // Run on page load
-        window.onload = loadPDF;
+        function highlightText(canvas, textItem, viewport) {
+            const ctx = canvas.getContext("2d");
+            const textBox = textItem.transform;
+            const x = textBox[4];
+            const y = viewport.height - textBox[5];
+
+            ctx.fillStyle = "yellow";
+            ctx.globalAlpha = 0.5;
+            ctx.fillRect(x, y - 10, textItem.width, 10);
+        }
+
+        loadPDF();
     </script>
-</head>
-<body>
-    <h2>View PDF with Highlighted Text</h2>
-    <iframe id="pdfViewer" src="GCPBC.pdf" width="100%" height="600px"></iframe>
 </body>
 </html>
